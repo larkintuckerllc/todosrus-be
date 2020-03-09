@@ -9,8 +9,9 @@ from uuid import uuid4
 
 # SUPPORT LOCAL DEVELOPMENT
 localhost = getenv('LOCALHOST')
+region = getenv('REGION')
 if (localhost == None):
-    ddb = boto3.resource('dynamodb', region_name='us-east-1')
+    ddb = boto3.resource('dynamodb', region_name=region)
 else:
     ddb = boto3.resource('dynamodb', endpoint_url='http://localhost:8000')
 
