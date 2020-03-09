@@ -1,8 +1,7 @@
 astroid==2.3.3
-boto==2.49.0
-boto3==1.12.16
-botocore==1.15.16
-Click==7.0
+boto3==1.12.17
+botocore==1.15.17
+click==7.1.1
 docutils==0.15.2
 Flask==1.1.1
 Flask-Cors==3.0.8
@@ -17,6 +16,7 @@ pylint==2.4.4
 python-dateutil==2.8.1
 s3transfer==0.3.3
 six==1.14.0
+typed-ast==1.4.1
 urllib3==1.25.8
 Werkzeug==1.0.0
 wrapt==1.11.2
