@@ -7,9 +7,10 @@ import json
 from os import getenv
 from uuid import uuid4
 
+region = getenv('REGION')
+
 # SUPPORT LOCAL DEVELOPMENT
 localhost = getenv('LOCALHOST')
-region = getenv('REGION')
 if (localhost == None):
     ddb = boto3.resource('dynamodb', region_name=region)
 else:
