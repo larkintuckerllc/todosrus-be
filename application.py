@@ -10,16 +10,16 @@ from uuid import uuid4
 # SUPPORT LOCAL DEVELOPMENT
 localhost = getenv('LOCALHOST')
 if (localhost == None):
-    ddb = boto3.resource('dynamodb')
+    ddb = boto3.resource('dynamodb', region_name='us-east-1')
 else:
     ddb = boto3.resource('dynamodb', endpoint_url='http://localhost:8000')
 
 Attr = boto3.dynamodb.conditions.Attr
 todosTable = ddb.Table('Todos')
-app = Flask(__name__)
-CORS(app)
+application = Flask(__name__)
+CORS(application)
 
-@app.route('/todos')
+@application.route('/todos')
 def read():
     try:
         response = todosTable.scan()
@@ -29,7 +29,7 @@ def read():
     except:
         abort(500)
 
-@app.route('/todos', methods=['POST'])
+@application.route('/todos', methods=['POST'])
 def create():
     request_dict = request.json
     if request_dict == None:
@@ -54,7 +54,7 @@ def create():
         abort(500)
 
 
-@app.route('/todos/<id>', methods=['DELETE'])
+@application.route('/todos/<id>', methods=['DELETE'])
 def delete(id):
     key = {
         'Id': id
