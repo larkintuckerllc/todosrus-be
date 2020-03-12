@@ -18,10 +18,10 @@ else:
 
 Attr = boto3.dynamodb.conditions.Attr
 todosTable = ddb.Table('Todos')
-application = Flask(__name__)
-CORS(application)
+app = Flask(__name__)
+CORS(app)
 
-@application.route('/todos')
+@app.route('/todos')
 def read():
     try:
         response = todosTable.scan()
@@ -31,7 +31,7 @@ def read():
     except:
         abort(500)
 
-@application.route('/todos', methods=['POST'])
+@app.route('/todos', methods=['POST'])
 def create():
     request_dict = request.json
     if request_dict == None:
@@ -56,7 +56,7 @@ def create():
         abort(500)
 
 
-@application.route('/todos/<id>', methods=['DELETE'])
+@app.route('/todos/<id>', methods=['DELETE'])
 def delete(id):
     key = {
         'Id': id
