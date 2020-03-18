@@ -7,19 +7,21 @@ import json
 from os import getenv
 from uuid import uuid4
 
-region = getenv('REGION')
+app = Flask(__name__)
 
-# SUPPORT LOCAL DEVELOPMENT
-localhost = getenv('LOCALHOST')
-if (localhost == None):
-    ddb = boto3.resource('dynamodb', region_name=region)
+# CONFIG
+if (app.config['ENV'] == 'development'):
+    app.config.from_object('settings')
 else:
-    ddb = boto3.resource('dynamodb', endpoint_url='http://localhost:8000')
+    app.config['APP_REGION'] = getenv('APP_REGION')
 
+CORS(app)
+if (app.config['ENV'] == 'development'):
+    ddb = boto3.resource('dynamodb', endpoint_url='http://localhost:8000')
+else:
+    ddb = boto3.resource('dynamodb', region_name=app.config['APP_REGION'])
 Attr = boto3.dynamodb.conditions.Attr
 todosTable = ddb.Table('Todos')
-app = Flask(__name__)
-CORS(app)
 
 @app.route('/todos')
 def read():
