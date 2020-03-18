@@ -3,8 +3,10 @@ import boto3
 from botocore.exceptions import ClientError
 from flask import abort, Flask, request, Response
 from flask_cors import CORS
+from jose import jwt
 import json
 from os import getenv
+import re
 from uuid import uuid4
 
 app = Flask(__name__)
@@ -13,7 +15,11 @@ app = Flask(__name__)
 if (app.config['ENV'] == 'development'):
     app.config.from_object('settings')
 else:
+    app.config['APP_AUDIENCE'] = getenv('APP_AUDIENCE')
+    app.config['APP_ISSUER'] = getenv('APP_ISSUER')
+    app.config['APP_JWKS'] = getenv('APP_JWKS')
     app.config['APP_REGION'] = getenv('APP_REGION')
+jwks = json.loads(app.config['APP_JWKS'])
 
 CORS(app)
 if (app.config['ENV'] == 'development'):
@@ -23,8 +29,31 @@ else:
 Attr = boto3.dynamodb.conditions.Attr
 todosTable = ddb.Table('Todos')
 
+def authenticate():
+    authorization = request.headers.get('authorization')
+    if (authorization == None):
+        abort(401)
+        return
+    m = re.search('^Bearer (.*)', authorization)
+    if (m == None):
+        abort(401)
+        return
+    token = m.group(1)
+    payload = jwt.decode(token, jwks, audience=app.config['APP_AUDIENCE'], options={
+      'verify_at_hash': False,
+    })
+    if (payload['iss'] != app.config['APP_ISSUER']):
+        abort(401)
+        return
+    if (payload['token_use'] != 'id'):
+        abort(401)
+        return
+    return payload['sub']
+
 @app.route('/todos')
 def read():
+    sub = authenticate()
+    print(sub)
     try:
         response = todosTable.scan()
         todos = response['Items']
@@ -35,6 +64,7 @@ def read():
 
 @app.route('/todos', methods=['POST'])
 def create():
+    authenticate()
     request_dict = request.json
     if request_dict == None:
         abort(400)
@@ -60,6 +90,7 @@ def create():
 
 @app.route('/todos/<id>', methods=['DELETE'])
 def delete(id):
+    authenticate()
     key = {
         'Id': id
     }

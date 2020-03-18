@@ -10,6 +10,8 @@ pylint = "*"
 flask = "*"
 boto3 = "*"
 flask-cors = "*"
+cryptography = "*"
+python-jose = "*"
 
 [requires]
 python_version = "3.6.8"

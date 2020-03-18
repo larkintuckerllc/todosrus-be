@@ -1,1 +1,4 @@
-APP_REGION = 'us-east-1'
+APP_REGION = ''
+APP_JWKS = ''
+APP_AUDIENCE = ''
+APP_ISSUER = ''
