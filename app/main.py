@@ -39,9 +39,13 @@ def authenticate():
         abort(401)
         return
     token = m.group(1)
-    payload = jwt.decode(token, jwks, audience=app.config['APP_AUDIENCE'], options={
-      'verify_at_hash': False,
-    })
+    try:
+        payload = jwt.decode(token, jwks, audience=app.config['APP_AUDIENCE'], options={
+            'verify_at_hash': False,
+        })
+    except:
+        abort(401)
+        return
     if (payload['iss'] != app.config['APP_ISSUER']):
         abort(401)
         return
