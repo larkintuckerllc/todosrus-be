@@ -54,6 +54,10 @@ def authenticate():
         return
     return payload['sub']
 
+@app.route('/hc')
+def hc():
+    return 'healthy'
+
 @app.route('/todos')
 def read():
     sub = authenticate()
