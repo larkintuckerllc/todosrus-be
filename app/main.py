@@ -26,12 +26,22 @@ else:
 jwks = json.loads(app.config['APP_JWKS'])
 
 CORS(app)
-if (app.config['ENV'] == 'development'):
-    ddb = boto3.resource('dynamodb', endpoint_url='http://localhost:8000')
-else:
-    ddb = boto3.resource('dynamodb', region_name=app.config['APP_REGION'])
+
+# TODO MAKE HANDLE AUTH ON DDB
 
 todosTable = ddb.Table('Todos')
+
+def initialize_ddb(access_key_id, secret_key, session_token):
+    if (app.config['ENV'] == 'development'):
+        ddb = boto3.resource(
+            'dynamodb',
+            endpoint_url='http://localhost:8000',
+        )
+    else:
+        ddb = boto3.resource(
+            'dynamodb', 
+            region_name=app.config['APP_REGION']
+        )
 
 def authenticate():
     authorization = request.headers.get('authorization')
@@ -58,9 +68,17 @@ def authenticate():
             IdentityPoolId=app.config['APP_IDENTITY_POOL_ID'],
             Logins=dict([(app.config['APP_IDENTITY_PROVIDER_NAME'], token)])
         )
+        identity_id = response['IdentityId']
+        response = client.get_credentials_for_identity(
+            IdentityId=identity_id,
+            Logins=dict([(app.config['APP_IDENTITY_PROVIDER_NAME'], token)])
+        )
+        access_key_id = response['Credentials']['AccessKeyId']
+        secret_key = response['Credentials']['SecretKey']
+        session_token= response['Credentials']['SessionToken']
+        return identity_id
     except:
         abort(401)
-    return response['IdentityId']
 
 @app.route('/hc')
 def hc():
