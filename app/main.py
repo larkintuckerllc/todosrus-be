@@ -26,22 +26,25 @@ else:
 jwks = json.loads(app.config['APP_JWKS'])
 
 CORS(app)
-
-# TODO MAKE HANDLE AUTH ON DDB
-
-todosTable = ddb.Table('Todos')
+todosTable = None
 
 def initialize_ddb(access_key_id, secret_key, session_token):
+    global todosTable
     if (app.config['ENV'] == 'development'):
         ddb = boto3.resource(
             'dynamodb',
             endpoint_url='http://localhost:8000',
         )
+        todosTable = ddb.Table('Todos')
     else:
         ddb = boto3.resource(
             'dynamodb', 
-            region_name=app.config['APP_REGION']
+            region_name=app.config['APP_REGION'],
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_key,
+            aws_session_token=session_token,
         )
+        todosTable = ddb.Table('Todos')
 
 def authenticate():
     authorization = request.headers.get('authorization')
@@ -76,6 +79,7 @@ def authenticate():
         access_key_id = response['Credentials']['AccessKeyId']
         secret_key = response['Credentials']['SecretKey']
         session_token= response['Credentials']['SessionToken']
+        initialize_ddb(access_key_id, secret_key, session_token)
         return identity_id
     except:
         abort(401)
