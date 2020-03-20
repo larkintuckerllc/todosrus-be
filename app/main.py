@@ -33,11 +33,9 @@ def authenticate():
     authorization = request.headers.get('authorization')
     if (authorization == None):
         abort(401)
-        return
     m = re.search('^Bearer (.*)', authorization)
     if (m == None):
         abort(401)
-        return
     token = m.group(1)
     try:
         payload = jwt.decode(token, jwks, audience=app.config['APP_AUDIENCE'], options={
@@ -45,14 +43,25 @@ def authenticate():
         })
     except:
         abort(401)
-        return
     if (payload['iss'] != app.config['APP_ISSUER']):
         abort(401)
-        return
     if (payload['token_use'] != 'id'):
         abort(401)
+    """
+    client = boto3.client('cognito-identity', 'us-east-1')
+    try:
+        response = client.get_id(
+            AccountId='143287522423',
+            IdentityPoolId='us-east-1:3f2d50a3-8bd4-4457-b5c5-406f27603d3d',
+            Logins={
+                'cognito-idp.us-east-1.amazonaws.com/us-east-1_rIytU4eSc': token,
+            }
+        )
+    except:
+        abort(401)
         return
-    return payload['sub']
+    """
+    return token
 
 @app.route('/hc')
 def hc():
@@ -60,8 +69,7 @@ def hc():
 
 @app.route('/todos')
 def read():
-    sub = authenticate()
-    print(sub)
+    authenticate()
     try:
         response = todosTable.scan()
         todos = response['Items']
@@ -76,14 +84,11 @@ def create():
     request_dict = request.json
     if request_dict == None:
         abort(400)
-        return
     if not 'Name' in request_dict:
         abort(400)
-        return
     name = request_dict['Name']
     if not isinstance(name, str):
         abort(400)
-        return
     try:
         id = str(uuid4())
         item = {
