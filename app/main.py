@@ -15,7 +15,10 @@ app = Flask(__name__)
 if (app.config['ENV'] == 'development'):
     app.config.from_object('settings')
 else:
+    app.config['APP_ACCOUNT_ID'] = getenv('APP_ACCOUNT_ID')
     app.config['APP_AUDIENCE'] = getenv('APP_AUDIENCE')
+    app.config['APP_IDENTITY_POOL_ID'] = getenv('APP_IDENTITY_POOL_ID')
+    app.config['APP_IDENTITY_PROVIDER_NAME'] = getenv('APP_IDENTITY_PROVIDER_NAME')
     app.config['APP_ISSUER'] = getenv('APP_ISSUER')
     app.config['APP_JWKS'] = getenv('APP_JWKS')
     app.config['APP_REGION'] = getenv('APP_REGION')
@@ -47,21 +50,16 @@ def authenticate():
         abort(401)
     if (payload['token_use'] != 'id'):
         abort(401)
-    """
     client = boto3.client('cognito-identity', 'us-east-1')
     try:
         response = client.get_id(
-            AccountId='143287522423',
-            IdentityPoolId='us-east-1:3f2d50a3-8bd4-4457-b5c5-406f27603d3d',
-            Logins={
-                'cognito-idp.us-east-1.amazonaws.com/us-east-1_rIytU4eSc': token,
-            }
+            AccountId=app.config['APP_ACCOUNT_ID'],
+            IdentityPoolId=app.config['APP_IDENTITY_POOL_ID'],
+            Logins=dict([(app.config['APP_IDENTITY_PROVIDER_NAME'], token)])
         )
     except:
         abort(401)
-        return
-    """
-    return token
+    return response['IdentityId']
 
 @app.route('/hc')
 def hc():
@@ -69,7 +67,8 @@ def hc():
 
 @app.route('/todos')
 def read():
-    authenticate()
+    identity_id = authenticate()
+    print(identity_id)
     try:
         response = todosTable.scan()
         todos = response['Items']
