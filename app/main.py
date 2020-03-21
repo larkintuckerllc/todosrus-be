@@ -123,6 +123,8 @@ def read():
 @app.route('/todos', methods=['POST'])
 def create():
     [identity_id, access_key_id, secret_key, session_token, email] = authenticate()
+
+    # VALIDATION
     request_dict = request.json
     if request_dict == None:
         abort(400)
@@ -132,31 +134,29 @@ def create():
     if not isinstance(name, str):
         abort(400)
 
-    # SUBSCRIPTIONS
     initialize_subscriptions_table(access_key_id, secret_key, session_token)
-    # TODO TRY BLOCK
-    response = subscriptions_table.get_item(
-        Key={
-            'IdentityId': identity_id,
-        }
-    )     
-    if (not 'Item' in response):
-        sns_client = boto3.client('sns')
-        sns_client.subscribe(
-            TopicArn=app.config['APP_TOPIC_ARN'],
-            Protocol='email',
-            Endpoint=email,
-            Attributes={
-                'FilterPolicy': json.dumps({ 'IdentityId': [ identity_id ] }),
-            },
-        )
-        subscriptions_table.put_item(Item={
-            'IdentityId': identity_id,
-        })
-
-    # TODOS
-    id = str(uuid4())
     try:
+        # SUBSCRIPTIONS
+        response = subscriptions_table.get_item(
+            Key={
+                'IdentityId': identity_id,
+            }
+        )     
+        if (not 'Item' in response):
+            sns_client = boto3.client('sns')
+            sns_client.subscribe(
+                TopicArn=app.config['APP_TOPIC_ARN'],
+                Protocol='email',
+                Endpoint=email,
+                Attributes={
+                    'FilterPolicy': json.dumps({ 'IdentityId': [ identity_id ] }),
+                },
+            )
+            subscriptions_table.put_item(Item={
+                'IdentityId': identity_id,
+            })
+
+        # TODOS
         todos_table.put_item(Item={
             'IdentityId': identity_id,
             'Id': id,
