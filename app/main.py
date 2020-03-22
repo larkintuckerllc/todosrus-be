@@ -157,6 +157,7 @@ def create():
             })
 
         # TODOS
+        id = str(uuid4())
         todos_table.put_item(Item={
             'IdentityId': identity_id,
             'Id': id,
