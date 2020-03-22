@@ -23,28 +23,44 @@ else:
     app.config['APP_ISSUER'] = getenv('APP_ISSUER')
     app.config['APP_JWKS'] = getenv('APP_JWKS')
     app.config['APP_REGION'] = getenv('APP_REGION')
+    app.config['APP_TOPIC_ARN'] = getenv('APP_TOPIC_ARN')
 jwks = json.loads(app.config['APP_JWKS'])
 
 CORS(app)
-todosTable = None
+todos_table = None
+subscriptions_table = None
 
-def initialize_ddb(access_key_id, secret_key, session_token):
-    global todosTable
+def initialize_todos_table(access_key_id, secret_key, session_token):
+    global todos_table
     if (app.config['ENV'] == 'development'):
-        ddb = boto3.resource(
+        todos_table = boto3.resource(
             'dynamodb',
             endpoint_url='http://localhost:8000',
-        )
-        todosTable = ddb.Table('Todos')
+        ).Table('Todos')
     else:
-        ddb = boto3.resource(
+        todos_table = boto3.resource(
             'dynamodb', 
             region_name=app.config['APP_REGION'],
             aws_access_key_id=access_key_id,
             aws_secret_access_key=secret_key,
             aws_session_token=session_token,
-        )
-        todosTable = ddb.Table('Todos')
+        ).Table('Todos')
+    
+def initialize_subscriptions_table(access_key_id, secret_key, session_token):
+    global subscriptions_table
+    if (app.config['ENV'] == 'development'):
+        subscriptions_table = boto3.resource(
+            'dynamodb',
+            endpoint_url='http://localhost:8000',
+        ).Table('Subscriptions')
+    else:
+        subscriptions_table = boto3.resource(
+            'dynamodb', 
+            region_name=app.config['APP_REGION'],
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_key,
+            aws_session_token=session_token,
+        ).Table('Subscriptions')
 
 def authenticate():
     authorization = request.headers.get('authorization')
@@ -79,8 +95,8 @@ def authenticate():
         access_key_id = response['Credentials']['AccessKeyId']
         secret_key = response['Credentials']['SecretKey']
         session_token= response['Credentials']['SessionToken']
-        initialize_ddb(access_key_id, secret_key, session_token)
-        return identity_id
+        initialize_todos_table(access_key_id, secret_key, session_token)
+        return [identity_id, access_key_id, secret_key, session_token, payload['email']]
     except:
         abort(401)
 
@@ -90,9 +106,9 @@ def hc():
 
 @app.route('/todos')
 def read():
-    identity_id = authenticate()
+    [identity_id, *_] = authenticate()
     try:
-        response = todosTable.query(
+        response = todos_table.query(
             ExpressionAttributeNames={"#N":"Name"},
             KeyConditionExpression=Key('IdentityId').eq(identity_id),
             ProjectionExpression='Id, #N',
@@ -106,7 +122,9 @@ def read():
 
 @app.route('/todos', methods=['POST'])
 def create():
-    identity_id = authenticate()
+    [identity_id, access_key_id, secret_key, session_token, email] = authenticate()
+
+    # VALIDATION
     request_dict = request.json
     if request_dict == None:
         abort(400)
@@ -115,14 +133,35 @@ def create():
     name = request_dict['Name']
     if not isinstance(name, str):
         abort(400)
+
+    initialize_subscriptions_table(access_key_id, secret_key, session_token)
     try:
-        id = str(uuid4())
-        item = {
+        # SUBSCRIPTIONS
+        response = subscriptions_table.get_item(
+            Key={
+                'IdentityId': identity_id,
+            }
+        )     
+        if (not 'Item' in response):
+            sns_client = boto3.client('sns')
+            sns_client.subscribe(
+                TopicArn=app.config['APP_TOPIC_ARN'],
+                Protocol='email',
+                Endpoint=email,
+                Attributes={
+                    'FilterPolicy': json.dumps({ 'IdentityId': [ identity_id ] }),
+                },
+            )
+            subscriptions_table.put_item(Item={
+                'IdentityId': identity_id,
+            })
+
+        # TODOS
+        todos_table.put_item(Item={
             'IdentityId': identity_id,
             'Id': id,
             'Name': name,
-        }
-        todosTable.put_item(Item=item)
+        })
         return {
             'Id': id,
             'Name': name,
@@ -133,13 +172,13 @@ def create():
 
 @app.route('/todos/<id>', methods=['DELETE'])
 def delete(id):
-    identity_id = authenticate()
+    [identity_id, *_] = authenticate()
     key = {
         'IdentityId': identity_id,
         'Id': id,
     }
     try:
-        todosTable.delete_item(
+        todos_table.delete_item(
             ConditionExpression=Attr('IdentityId').eq(identity_id) & Attr('Id').eq(id),
             Key=key
         )
