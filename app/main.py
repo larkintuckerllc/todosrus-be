@@ -144,6 +144,7 @@ def create():
         )     
         if (not 'Item' in response):
             sns_client = boto3.client('sns')
+            # TODO: NEED TO HANDLE DUPLICATE EMAIL SITUATION
             sns_client.subscribe(
                 TopicArn=app.config['APP_TOPIC_ARN'],
                 Protocol='email',
